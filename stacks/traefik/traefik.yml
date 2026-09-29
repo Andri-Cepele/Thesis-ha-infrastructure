@@ -1,0 +1,37 @@
+# Traefik static configuration.
+# One entrypoint per exposed service — kept simple (no host-based routing)
+# since every service is accessed directly by port over the Tailscale mesh.
+
+entryPoints:
+  web:
+    address: ":80"
+  traefik:            # internal entrypoint: dashboard, API and /metrics
+    address: ":8080"
+  jellyfin:
+    address: ":8096"
+  immich:
+    address: ":2283"
+  grafana:
+    address: ":3000"
+  prometheus:
+    address: ":9090"
+
+api:
+  dashboard: true
+  insecure: true   # dashboard reachable only over Tailscale — see docs/architecture.md
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    swarmMode: true
+    network: proxy-net
+
+metrics:
+  prometheus:
+    entryPoint: traefik
+    addEntryPointsLabels: true
+    addServicesLabels: true
+
+log:
+  level: INFO

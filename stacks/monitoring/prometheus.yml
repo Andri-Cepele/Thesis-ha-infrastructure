@@ -1,0 +1,30 @@
+# Prometheus scrape config.
+# Scrapes node_exporter on all three nodes (including the textfile_collector
+# metrics for GlusterFS health, see scripts/gluster-heal-check.sh), Traefik's
+# built-in metrics, and itself.
+#
+# NOTE: Prometheus does NOT expand environment variables inside this file.
+# Replace the <...> placeholders with your nodes' Tailscale IPs or MagicDNS
+# names before deploying.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets:
+          - '<MANAGER_TAILSCALE_IP>:9100'
+          - '<WORKER1_TAILSCALE_IP>:9100'
+          - '<WORKER2_TAILSCALE_IP>:9100'
+
+  # Traefik exposes /metrics on its internal "traefik" entrypoint (:8080),
+  # enabled by the `metrics.prometheus` block in stacks/traefik/traefik.yml.
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['<MANAGER_TAILSCALE_IP>:8080']

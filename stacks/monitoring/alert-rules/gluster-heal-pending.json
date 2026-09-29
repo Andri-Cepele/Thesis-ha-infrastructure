@@ -1,0 +1,45 @@
+{
+  "title": "GlusterFS Heal Pending",
+  "folderUID": "infra-alerts",
+  "ruleGroup": "Infrastructure",
+  "condition": "C",
+  "data": [
+    {
+      "refId": "A",
+      "relativeTimeRange": { "from": 300, "to": 0 },
+      "datasourceUid": "<PROMETHEUS_DATASOURCE_UID>",
+      "model": {
+        "expr": "max(gluster_heal_pending_entries)",
+        "instant": true,
+        "refId": "A"
+      }
+    },
+    {
+      "refId": "C",
+      "relativeTimeRange": { "from": 300, "to": 0 },
+      "datasourceUid": "-100",
+      "model": {
+        "conditions": [
+          {
+            "evaluator": { "params": [0], "type": "gt" },
+            "operator": { "type": "and" },
+            "query": { "params": ["A"] },
+            "reducer": { "type": "last" }
+          }
+        ],
+        "expression": "A",
+        "refId": "C",
+        "type": "threshold"
+      }
+    }
+  ],
+  "noDataState": "NoData",
+  "execErrState": "Error",
+  "for": "5m",
+  "annotations": {
+    "description": "GlusterFS has entries pending heal for more than 5 minutes.",
+    "summary": "GlusterFS Heal Pending"
+  },
+  "labels": { "severity": "warning" },
+  "_comment": "Depends on scripts/gluster-heal-check.sh populating the textfile collector. Note: this script was patched to emit a separate gluster_check_failed metric after the underlying `gluster` command itself failed during a glusterd restart and produced a false split-brain positive — see docs/incident-reports/03-failover-testing-and-boot-races.md."
+}

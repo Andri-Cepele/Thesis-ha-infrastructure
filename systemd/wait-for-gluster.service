@@ -1,0 +1,30 @@
+# Install to /etc/systemd/system/ on every GlusterFS peer node (worker1, worker2).
+#
+# Problem this solves: fixing the Tailscale race (wait-for-tailscale.service)
+# was necessary but not sufficient. A second, independent race exists:
+# glusterd itself can take longer to bring the LOCAL brick process online
+# than the mount attempt waits for, and — this is the important part —
+# glusterd does not always self-heal that on its own; the brick can sit at
+# "Online: N" indefinitely until explicitly force-started. This unit both
+# forces the brick online and, via ExecStartPost, explicitly re-triggers the
+# /mnt/gluster mount — because once a systemd .mount unit has already failed
+# once during boot, systemd does NOT automatically retry it just because a
+# dependency later succeeds; it has to be told to mount again.
+#
+# See docs/incident-reports/03-failover-testing-and-boot-races.md.
+
+[Unit]
+Description=Wait for local GlusterFS brick to be online
+After=glusterd.service wait-for-tailscale.service
+Wants=glusterd.service wait-for-tailscale.service
+Before=mnt-gluster.mount
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wait-for-gluster.sh
+ExecStartPost=/bin/sh -c 'mountpoint -q /mnt/gluster || /bin/mount /mnt/gluster'
+RemainAfterExit=yes
+TimeoutStartSec=70
+
+[Install]
+WantedBy=multi-user.target

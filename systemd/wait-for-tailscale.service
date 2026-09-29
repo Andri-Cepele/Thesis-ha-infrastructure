@@ -1,0 +1,27 @@
+# Install to /etc/systemd/system/ on every GlusterFS peer node (worker1, worker2).
+#
+# Problem this solves: `_netdev` in /etc/fstab is not sufficient when the
+# mount's *source* is itself only reachable over Tailscale. tailscaled.service
+# being "started" (systemd's view) is not the same as the tailscale0 interface
+# actually having an IP and being reachable — there's a real gap of several
+# seconds between the two on boot. A GlusterFS mount attempted in that gap
+# fails outright and does not get automatically retried by systemd once the
+# network does come up.
+#
+# See docs/incident-reports/03-failover-testing-and-boot-races.md for the
+# full incident this was built to fix.
+
+[Unit]
+Description=Wait for Tailscale to be fully connected
+After=tailscaled.service network-online.target
+Wants=tailscaled.service network-online.target
+Before=mnt-gluster.mount
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wait-for-tailscale.sh
+RemainAfterExit=yes
+TimeoutStartSec=90
+
+[Install]
+WantedBy=multi-user.target

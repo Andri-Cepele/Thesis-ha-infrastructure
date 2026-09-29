@@ -1,0 +1,45 @@
+{
+  "_comment": "One rule exists per worker node (e.g. 'RAM > 85% — worker1', 'RAM > 85% — worker2'). Template below — duplicate per node and substitute <NODE_TAILSCALE_IP> and <NODE_NAME>. IMPORTANT: this rule shipped with two separate bugs on both node copies (see docs/incident-reports/04-alerting-audit.md) — one multiplied by *0 instead of *100 (always evaluated to zero, could never fire), the other was missing the *100 operator entirely (PromQL syntax error, silently never evaluated). The corrected expression is shown below.",
+  "title": "RAM > 85% — <NODE_NAME>",
+  "folderUID": "infra-alerts",
+  "ruleGroup": "Infrastructure",
+  "condition": "C",
+  "data": [
+    {
+      "refId": "A",
+      "relativeTimeRange": { "from": 300, "to": 0 },
+      "datasourceUid": "<PROMETHEUS_DATASOURCE_UID>",
+      "model": {
+        "expr": "(1-(node_memory_MemAvailable_bytes{instance=\"<NODE_TAILSCALE_IP>:9100\"}/node_memory_MemTotal_bytes{instance=\"<NODE_TAILSCALE_IP>:9100\"}))*100",
+        "instant": true,
+        "refId": "A"
+      }
+    },
+    {
+      "refId": "C",
+      "relativeTimeRange": { "from": 300, "to": 0 },
+      "datasourceUid": "-100",
+      "model": {
+        "conditions": [
+          {
+            "evaluator": { "params": [85], "type": "gt" },
+            "operator": { "type": "and" },
+            "query": { "params": ["A"] },
+            "reducer": { "type": "last" }
+          }
+        ],
+        "expression": "A",
+        "refId": "C",
+        "type": "threshold"
+      }
+    }
+  ],
+  "noDataState": "NoData",
+  "execErrState": "Error",
+  "for": "2m",
+  "annotations": {
+    "description": "RAM has exceeded 85% for 2 minutes.",
+    "summary": "High RAM — <NODE_NAME>"
+  },
+  "labels": { "severity": "critical" }
+}

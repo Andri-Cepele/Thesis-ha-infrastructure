@@ -1,0 +1,22 @@
+{
+  "_comment": "Sanitized reference for the email contact point and root notification policy. Substitute your own address and re-create via Grafana's Alerting UI or provisioning API — do not commit a real address/app-password here.",
+
+  "contact_point": {
+    "name": "Email Alerts",
+    "type": "email",
+    "settings": {
+      "addresses": "<YOUR_ALERT_INBOX>",
+      "subject": "[Grafana Alert] {{ len .Alerts.Firing }} firing — Infrastructure"
+    }
+  },
+
+  "notification_policy": {
+    "receiver": "Email Alerts",
+    "group_by": ["alertname"],
+    "group_wait": "30s",
+    "group_interval": "5m",
+    "repeat_interval": "2h"
+  },
+
+  "_lesson_learned": "This contact point existed and looked correctly wired from day one, but the Gmail App Password backing it had silently expired months earlier. Every alert rule appeared healthy in the UI while zero notifications were actually being delivered. Always send a live test notification after any SMTP/contact-point change — 'configured' is not the same as 'delivering'. See docs/incident-reports/04-alerting-audit.md."
+}

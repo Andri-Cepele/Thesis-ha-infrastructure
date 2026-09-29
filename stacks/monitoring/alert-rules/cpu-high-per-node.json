@@ -1,0 +1,45 @@
+{
+  "_comment": "One rule exists per worker node in the live cluster (e.g. 'CPU > 80% — worker1', 'CPU > 80% — worker2'). Template shown below — duplicate per node and substitute <NODE_TAILSCALE_IP> and <NODE_NAME>.",
+  "title": "CPU > 80% — <NODE_NAME>",
+  "folderUID": "infra-alerts",
+  "ruleGroup": "Infrastructure",
+  "condition": "C",
+  "data": [
+    {
+      "refId": "A",
+      "relativeTimeRange": { "from": 300, "to": 0 },
+      "datasourceUid": "<PROMETHEUS_DATASOURCE_UID>",
+      "model": {
+        "expr": "100-(avg(rate(node_cpu_seconds_total{mode=\"idle\",instance=\"<NODE_TAILSCALE_IP>:9100\"}[2m]))*100)",
+        "instant": true,
+        "refId": "A"
+      }
+    },
+    {
+      "refId": "C",
+      "relativeTimeRange": { "from": 300, "to": 0 },
+      "datasourceUid": "-100",
+      "model": {
+        "conditions": [
+          {
+            "evaluator": { "params": [80], "type": "gt" },
+            "operator": { "type": "and" },
+            "query": { "params": ["A"] },
+            "reducer": { "type": "last" }
+          }
+        ],
+        "expression": "A",
+        "refId": "C",
+        "type": "threshold"
+      }
+    }
+  ],
+  "noDataState": "NoData",
+  "execErrState": "Error",
+  "for": "2m",
+  "annotations": {
+    "description": "CPU has exceeded 80% for 2 minutes.",
+    "summary": "High CPU — <NODE_NAME>"
+  },
+  "labels": { "severity": "warning" }
+}

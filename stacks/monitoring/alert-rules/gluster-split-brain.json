@@ -1,0 +1,45 @@
+{
+  "title": "GlusterFS SPLIT-BRAIN Detected",
+  "folderUID": "infra-alerts",
+  "ruleGroup": "Infrastructure",
+  "condition": "C",
+  "data": [
+    {
+      "refId": "A",
+      "relativeTimeRange": { "from": 300, "to": 0 },
+      "datasourceUid": "<PROMETHEUS_DATASOURCE_UID>",
+      "model": {
+        "expr": "max(gluster_split_brain_entries)",
+        "instant": true,
+        "refId": "A"
+      }
+    },
+    {
+      "refId": "C",
+      "relativeTimeRange": { "from": 300, "to": 0 },
+      "datasourceUid": "-100",
+      "model": {
+        "conditions": [
+          {
+            "evaluator": { "params": [0], "type": "gt" },
+            "operator": { "type": "and" },
+            "query": { "params": ["A"] },
+            "reducer": { "type": "last" }
+          }
+        ],
+        "expression": "A",
+        "refId": "C",
+        "type": "threshold"
+      }
+    }
+  ],
+  "noDataState": "NoData",
+  "execErrState": "Error",
+  "for": "0m",
+  "annotations": {
+    "description": "CRITICAL: GlusterFS has detected split-brain! Immediate intervention required.",
+    "summary": "GlusterFS SPLIT-BRAIN"
+  },
+  "labels": { "severity": "critical" },
+  "_comment": "for=0m: fires immediately, no debounce — split-brain is data-integrity critical and worth a false positive over a missed real one. See incident report 03 for a real false-positive this rule caught (health-check command itself failed, not an actual split-brain) and the script fix that followed."
+}

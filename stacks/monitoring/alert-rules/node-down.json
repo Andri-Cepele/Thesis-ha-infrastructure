@@ -1,0 +1,46 @@
+{
+  "_comment": "One rule per worker node (e.g. 'Node Down — worker1', 'Node Down — worker2'). Template below — duplicate and substitute <NODE_TAILSCALE_IP> and <NODE_NAME>.",
+  "title": "Node Down — <NODE_NAME>",
+  "folderUID": "infra-alerts",
+  "ruleGroup": "Infrastructure",
+  "condition": "C",
+  "data": [
+    {
+      "refId": "A",
+      "relativeTimeRange": { "from": 300, "to": 0 },
+      "datasourceUid": "<PROMETHEUS_DATASOURCE_UID>",
+      "model": {
+        "expr": "up{job=\"node-exporter\",instance=\"<NODE_TAILSCALE_IP>:9100\"}",
+        "instant": true,
+        "refId": "A"
+      }
+    },
+    {
+      "refId": "C",
+      "relativeTimeRange": { "from": 300, "to": 0 },
+      "datasourceUid": "-100",
+      "model": {
+        "conditions": [
+          {
+            "evaluator": { "params": [1], "type": "lt" },
+            "operator": { "type": "and" },
+            "query": { "params": ["A"] },
+            "reducer": { "type": "last" }
+          }
+        ],
+        "expression": "A",
+        "refId": "C",
+        "type": "threshold"
+      }
+    }
+  ],
+  "noDataState": "Alerting",
+  "execErrState": "Alerting",
+  "for": "1m",
+  "annotations": {
+    "description": "Node <NODE_NAME> is not responding.",
+    "summary": "<NODE_NAME> is DOWN"
+  },
+  "labels": { "severity": "critical" },
+  "_comment_nodata": "noDataState/execErrState both set to 'Alerting' (not the Grafana default) — a scrape target disappearing entirely is itself the failure signal for this rule, so 'no data' must page, not go silent."
+}

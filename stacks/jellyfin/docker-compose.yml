@@ -1,0 +1,47 @@
+# Jellyfin — media server.
+#
+# Image is pinned to a specific digest (not a floating tag) after an incident
+# where a `docker service update --force` silently pulled a new `:latest`
+# months after the original deploy. Pinning the digest means any future
+# --force update re-deploys the *exact same* image byte-for-byte, rather than
+# whatever `latest` happens to resolve to on that day.
+#
+# restart_policy has no max_attempts (see docs/incident-reports/03) — this
+# was originally capped at 3 attempts, which meant Jellyfin gave up and sat
+# in a permanently failed state during a GlusterFS mount race on boot, while
+# every other service on the same node (no attempt cap) kept retrying and
+# recovered on its own. The fix here is twofold: remove the cap, and fix the
+# actual mount race in systemd (see ../../systemd/).
+version: "3.8"
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest@sha256:baba630419915985442f315f08b0cf46d9f4c8a0cc4bd38e94a6d35751dd5ef5
+    environment:
+      - JELLYFIN_PublishedServerUrl=http://${MANAGER_TAILSCALE_IP}:8096
+    volumes:
+      - /mnt/gluster/jellyfin/config:/config
+      - /mnt/gluster/jellyfin/media:/media
+    networks:
+      - proxy-net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.glusterfs == true
+      restart_policy:
+        condition: on-failure
+        delay: 40s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.jellyfin.entrypoints=jellyfin"
+        - "traefik.http.routers.jellyfin.rule=PathPrefix(`/`)"
+        - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+
+networks:
+  proxy-net:
+    external: true

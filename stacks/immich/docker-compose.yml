@@ -1,0 +1,87 @@
+# Immich — self-hosted photo/video management with ML-based search.
+#
+# immich-db image is a "bridge" build (vectorchord0.3.0-pgvectors0.3.0) that
+# carries BOTH the legacy pgvecto.rs extension and its successor, VectorChord.
+# This is deliberate: Immich upstream dropped pgvecto.rs support entirely in
+# later releases, and jumping straight to a current image against an old
+# pgvecto.rs-only database fails with "No vector extension found: vchord,
+# vector" — it doesn't even offer a migration path. The safe route (used here
+# after a real incident) is staged: pin immich-server to the last pgvecto.rs
+# -compatible release, deploy the bridge database image, bump immich-server
+# to the first version that performs the pgvecto.rs → VectorChord migration
+# (triggers automatically on that version's first boot against the bridge
+# image), THEN move to :release. See docs/incident-reports/02 for the full
+# incident, including a database migration-history edge case hit along the
+# way (a partial earlier upgrade attempt left "future" migration records in
+# the DB that an older server version didn't recognize).
+#
+# immich-server currently pinned to :v3.2.0 — this is the version the
+# migration above landed on; treat any further upgrade as a new staged
+# migration, not a routine `--force` update.
+version: "3.8"
+
+services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:v3.2.0
+    environment:
+      - DB_HOSTNAME=immich-db
+      - DB_USERNAME=${IMMICH_DB_USER}
+      - DB_PASSWORD=${IMMICH_DB_PASSWORD}
+      - DB_DATABASE_NAME=${IMMICH_DB_NAME}
+      - REDIS_HOSTNAME=immich-redis
+      - MACHINE_LEARNING_ENABLED=false
+      - UPLOAD_LOCATION=/usr/src/app/upload
+    volumes:
+      - /mnt/gluster/immich/upload:/usr/src/app/upload
+    networks:
+      - proxy-net
+      - immich-internal
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.glusterfs == true
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.immich.entrypoints=immich"
+        - "traefik.http.routers.immich.rule=PathPrefix(`/`)"
+        - "traefik.http.services.immich.loadbalancer.server.port=2283"
+
+  immich-db:
+    image: ghcr.io/immich-app/postgres:16-vectorchord0.3.0-pgvectors0.3.0
+    environment:
+      - POSTGRES_USER=${IMMICH_DB_USER}
+      - POSTGRES_PASSWORD=${IMMICH_DB_PASSWORD}
+      - POSTGRES_DB=${IMMICH_DB_NAME}
+    volumes:
+      - /mnt/gluster/immich/postgres:/var/lib/postgresql/data
+    networks:
+      - immich-internal
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.glusterfs == true
+      restart_policy:
+        condition: on-failure
+
+  immich-redis:
+    image: redis:7.2-alpine
+    networks:
+      - immich-internal
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.glusterfs == true
+      restart_policy:
+        condition: on-failure
+
+networks:
+  proxy-net:
+    external: true
+  immich-internal:
+    driver: overlay

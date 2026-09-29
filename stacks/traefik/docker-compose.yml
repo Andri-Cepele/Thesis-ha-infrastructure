@@ -1,0 +1,37 @@
+# Traefik — reverse proxy / single ingress point for the whole cluster.
+#
+# IMPORTANT: this service is manager-only by design (see docs/architecture.md).
+# It is also the cluster's single point of failure for external access: if the
+# manager node goes down, every service becomes unreachable from outside even
+# though the backend containers keep running on the workers. Tested and
+# confirmed to recover automatically on manager reboot — see
+# docs/incident-reports/03-failover-testing-and-boot-races.md.
+version: "3.8"
+
+services:
+  traefik:
+    image: traefik:v2.11
+    ports:
+      - "80:80"       # Nextcloud / general HTTP entrypoint
+      - "8080:8080"   # Traefik dashboard
+      - "8096:8096"   # Jellyfin
+      - "2283:2283"   # Immich
+      - "3000:3000"   # Grafana
+      - "9090:9090"   # Prometheus
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/traefik.yml:ro
+    networks:
+      - proxy-net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+
+networks:
+  proxy-net:
+    external: true
