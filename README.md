@@ -101,7 +101,7 @@ A second (and third) manager for Raft quorum, a lightweight arbiter node on SSD-
 
 ## Author
 
-**Andri Cepele**: L2 technical support engineer (TV engineering / OTT), moving into networking and infrastructure.
+**Andri Cepele**
 
 ## License
 
